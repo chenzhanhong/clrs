@@ -8,8 +8,10 @@
 #include <set>
 #include <map>
 #include <cmath>
+#include <ctime>
 #include <algorithm>
 #include <tuple>
+#include <functional>
 #include <assert.h>
 
 
@@ -341,14 +343,236 @@ T orderSelection(vector<T>&arr, int left,int right,int kth)
 	else if (k > kth)return orderSelection(arr,left,p-1,kth);
 	else return orderSelection(arr, p + 1, right, kth - k);
 }
+template<typename T>
+struct gNode
+{
+	T info;
+	int no;//node的编号
+};
+template<typename T>
+struct graph
+{
+	vector<gNode<T>*>nodes;
+	vector<vector<int>>edges;
+};
+//最小生成树是包含所有结点而且所有边权重之和最小
+template<typename T>
+int prim(graph<T>*G, int v0)
+{
+	//以编号no=v0的顶点开始寻找最小生成树
+	int maxNo = G->nodes.size() - 1;//图顶点的最大编号
+	vector<bool>vset(maxNo+1,false);//表示相应编号的顶点是否已加入最小生成树
+	vector<int>lowCost(maxNo+1);//表示相应编号的顶点到当前最小生成树各顶点最短边的权重
+	int resWeightSum = 0;
+	vset[v0] = true;//v0作为第一点加入最小生成树
+	for (int i = 0; i <= maxNo; ++i)
+	{
+		//初始化各点到树（其实就是编号v0的点）的最短边权重
+		lowCost[i] = G->edges[v0][i];
+	}
+	
+	for (int i = 0; i <= maxNo - 1; ++i)
+	{
+		//每次循环找到还没加入树的顶点中lowcost中最小的那个点，并将其加入vset（即加入最小生成树中）；注意每加入一个顶点到生成树后需要更新lowcost。
+		//总共需要加入除v0外的其他点,需要循环maxNo次
+
+		int k;//记录加入树的顶点编号
+		int minWeight = INT_MAX;
+		for (int j = 0; j <= maxNo; ++j)
+		{
+			if (!vset[j] && lowCost[j] < minWeight)
+			{
+				k = j;
+				minWeight = lowCost[j];
+			}
+		}
+		vset[k] = true;
+		resWeightSum += minWeight;
+		//更新lowcost
+		for (int j = 0; j <= maxNo; ++j)
+		{
+			if (!vset[j] && G->edges[k][j] < lowCost[j])
+				lowCost[j] = G->edges[k][j];
+		}
+		
+	}
+	
+	return resWeightSum;//返回整棵最小生成树的各边权重的和
+}
+template<typename T>
+void dijkstra(graph<T>*G, int v0, vector<int>&dist, vector<int>&path)
+{
+	//path[i]用于记录i结点到源结点v0最短路径的前驱
+	//dist[i]用于记录i结点到源节点v0的最短路径长度
+	int maxNo = G->nodes.size() - 1;
+	vector<bool>vset(maxNo+1,false);
+	dist = vector<int>(maxNo + 1);
+	path = vector<int>(maxNo+1,-1);
+	for (int i = 0; i <= maxNo; ++i)
+	{
+		dist[i] = G->edges[v0][i];
+		if (G->edges[v0][i] < INT_MAX)
+			path[i] = v0;
+	}
+	vset[v0] = true;
+	path[v0] = -1;//当算法结束是只有path[v0]=-1其他的都有前驱结点的编号
+	for (int i = 0; i <= maxNo - 1; ++i)
+	{
+		int k;
+		int mindist = INT_MAX;
+		for (int j = 0; j <= maxNo; ++j)
+		{
+			if (!vset[j] && dist[j] < mindist)
+			{
+				mindist = dist[j];
+				k = j;
+			}
+		}
+		vset[k] = true;
+		for (int j = 0; j <= maxNo; ++j)
+		{
+			if (!vset[j] && dist[k] + G->edges[k][j] < dist[j])
+			{
+				dist[j] = dist[k] + G->edges[k][j];
+				path[j] = k;
+			}
+		}
+	}
+}
+void printPath(const vector<int>& path, int destination)
+{
+	stack<int>stk;
+	stk.push(destination);
+	int pre = path[destination];
+	while (pre != -1)
+	{
+		stk.push(pre);
+		pre = path[pre];
+	}
+	while (!stk.empty())
+	{
+		cout << stk.top() << " ";
+		stk.pop();
+	}
+	cout << endl;
+}
+int memoizedCutRodAux(const vector<int>&arr, int n, vector<int>&memo)
+{
+	if (memo[n] != -1)return memo[n];
+	int q = INT_MIN;
+	for (int i = 1; i <= n; ++i)
+	{
+		q = max(q,arr[i]+memoizedCutRodAux(arr,n-i,memo));
+	}
+	memo[n] = q;
+	return q;
+}
+int memoizedCutRod(const vector<int>&arr, int n)
+{
+	vector<int>memo(n+1,-1);//memo的规模跟n挂钩,memo就是用来存储各个子问题的解的
+	memo[0] = 0;
+	return memoizedCutRodAux(arr,n,memo);
+}
+int bottomUpCutRod(const vector<int>&arr, int n)
+{
+	vector<int>r(n+1);
+	r[0] = 0;
+	for (int i = 1; i <= n; ++i)
+	{
+		int q = INT_MIN;
+		for (int j = 1; j <= i; ++j)
+		{
+			q = max(q,arr[j]+r[i-j]);
+		}
+		r[i] = q;
+	}
+	return r[n];
+}
+int matrixChainOrder(const vector<int>&arr, vector<vector<int>>&s)
+{
+	int n = arr.size() - 1;
+	vector<vector<int>>dpMat(1+n,vector<int>(1+n));//dp[i][j]表示Ai....Aj最低需要几次运算
+	s = dpMat;
+	for (int i = 1; i <= n; ++i)dpMat[i][i] = 0;
+	for (int l = 2; l <= n; ++l)
+	{
+		//必须把l放在两层循环的最外面，表示先计算矩阵链最短的子问题
+		for (int i = 1; i <= n - l + 1; ++i)
+		{
+			int m = INT_MAX;
+			int mi;
+			int j = i + l - 1;
+			for (int k = i; k <= j-1; ++k)
+			{
+				if (m > dpMat[i][k] + arr[i - 1] * arr[k] * arr[j] + dpMat[k + 1][j])
+				{
+					m = dpMat[i][k] + arr[i - 1] * arr[k] * arr[j] + dpMat[k + 1][j];
+					mi = k;
+				}
+			}
+			dpMat[i][j] = m;//计算完子问题后一定别忘了存起来啊！！！！
+			s[i][j] = mi;
+		}
+	}
+	return dpMat[1][n];
+}
+int lookupChain(const vector<int>&arr, vector<vector<int>>&s, vector<vector<int>>&memo, int i, int j)
+{
+	if (memo[i][j] != -1)return memo[i][j];
+	int m = INT_MAX;
+	int mi;
+	int cm;
+	for (int k = i; k <= j - 1; ++k)
+	{
+		cm = lookupChain(arr, s, memo, i, k) + lookupChain(arr, s, memo, k + 1, j) + arr[i - 1] * arr[k] * arr[j];
+		if (m >cm )
+		{
+			m = cm;
+			mi = k;
+		}
+	}
+	memo[i][j] = m;
+	s[i][j] = mi;
+	return m;
+}
+int memoizedMatrixChain(const vector<int>&arr, vector<vector<int>>&s)
+{
+    int n = arr.size() - 1;
+	vector<vector<int>>memo(1 + n, vector<int>(1 + n,-1));//dp[i][j]表示Ai....Aj最低需要几次运算
+	s = vector<vector<int>>(1+n,vector<int>(1+n));
+	for (int i = 1; i <= n; ++i)memo[i][i] = 0;
+	return lookupChain(arr,s,memo,1,n);
+}
+void printOptimalParens(const vector<vector<int>>s, int i, int j)
+{
+	if (i == j)
+		cout << "A" << i;
+	else
+	{
+		cout << "(";
+		printOptimalParens(s, i, s[i][j]);
+		printOptimalParens(s,s[i][j]+1,j);
+		cout << ")";
+	}
+}
 void main()
 {
-	vector<int>arr = { 13, -3, -25, 20, -3, -16, -23, 18, 20, -7, 12, -5, -22, 15, -4, 7,-1000 };
-	vector<int>arr2 = { 13, -3, -25, 20, -3, -16, -23, 18, 20, -7, 12, -5, -22, 15, -4, 7, -1000 };
+	
+	//vector<int>arr = { 13, -3, -25, 20, -3, -16, -23, 18, 20, -7, 12, -5, -22, 15, -4, 7,-1000 };
+	//vector<int>arr2 = { 13, -3, -25, 20, -3, -16, -23, 18, 20, -7, 12, -5, -22, 15, -4, 7, -1000 };
 	//vector<string>arrStr = {"100","223","034","311","109"};
-	//radixSort(arrStr,3);
-	//vector<int>arr = {};
-	mergeSort(arr);
-	cout << orderSelection(arr2, 0, arr2.size() - 1, 16) << endl;
-	int axxx = 0;
+	//radixSort(arrStr,3);              
+	//mergeSort(arr);
+	//cout << orderSelection(arr2, 0, arr2.size() - 1, 16) << endl;
+	//priority_queue<int,vector<int>,greater<int>>pq(arr.begin(),arr.end());
+	//while (!pq.empty())
+	//{
+	//	cout << pq.top() << " ";
+	//  pq.pop();
+	//}
+	vector<int>arr = {30,35,15,5,10,20,25};
+	vector<vector<int>>s;
+	cout << "min operation times:" << memoizedMatrixChain(arr, s) << endl;
+	printOptimalParens(s,1,6);
+	int axxx = 0; 
 }
