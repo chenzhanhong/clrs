@@ -212,7 +212,7 @@ listNode* genList(vector<int>&arr)
 	head->val = arr[0];
 	head->next = NULL;
 	pre = head;
-	for (int i = 1; i < arr.size();++i)
+	for (int i = 1; i < (int)arr.size();++i)
 	{
 		cur = (listNode*)malloc(sizeof(listNode));
 		cur->val = arr[i];
@@ -296,7 +296,7 @@ vector<int> cntSort(const vector<int>&arr, int k)
 	vector<int>cntArr(k+1,0);
 	for (int a : arr)
 		++cntArr[a];
-	for (int i = 1; i < cntArr.size(); ++i)
+	for (int i = 1; i < (int)cntArr.size(); ++i)
 		cntArr[i] += cntArr[i - 1];
 	vector<int>res(arr.size());
 	for (int i = (int)(arr.size() - 1); i >= 0; --i)
@@ -555,6 +555,119 @@ void printOptimalParens(const vector<vector<int>>s, int i, int j)
 		cout << ")";
 	}
 }
+vector<char> LCS_COSTLY(const vector<char>&X, const vector<char>&Y)
+{
+	int m = X.size();//X:<x0,x1....x(m-1)>
+	int n = Y.size();
+	typedef vector<char> seq;
+	vector<vector<seq>>dpm(m+1,vector<seq>(n+1,seq()));
+	for (int i = 1; i <= m; ++i)
+	{
+		for (int j = 1; j <= n; ++j)
+		{
+			if (X[i - 1] == Y[j - 1])
+			{
+				dpm[i][j] = dpm[i - 1][j - 1];
+				dpm[i][j].push_back(X[i-1]);
+			}
+			else
+			{
+				if (dpm[i - 1][j].size() > dpm[i][j - 1].size())
+				{
+					dpm[i][j] = dpm[i - 1][j];
+				}
+				else
+				{
+					dpm[i][j] = dpm[i][j-1];
+				}
+			}
+		}
+	}
+	return dpm[m][n];
+}
+int LCS(const vector<char>&X, const vector<char>&Y, vector<vector<char>>&b)
+{
+	//返回lcs的长度
+	int m = X.size();//X:<x0,x1....x(m-1)>
+	int n = Y.size();
+	vector<vector<int>>c(m+1,vector<int>(n+1,0));
+	b = vector<vector<char>>(m+1,vector<char>(n+1));
+	for (int i = 1; i <= m; ++i)
+	{
+		for (int j = 1; j <= n; ++j)
+		{
+			if (X[i - 1] == Y[j - 1]){ 
+				c[i][j] = c[i - 1][j - 1] + 1;
+				b[i][j] = 'd';
+			}
+			else { 
+				if (c[i - 1][j] > c[i][j - 1])
+				{
+					c[i][j] = c[i - 1][j];
+					b[i][j] = 'u';
+				}
+				else
+				{
+					c[i][j] = c[i][j-1];
+					b[i][j] = 'l';
+				}
+			}
+		}
+	}
+	return c[m][n];
+}
+void printLCS(const vector<char>& X, const vector<vector<char>>&b, int i, int j)
+{
+	if (i == 0 || j == 0)return;
+	else
+	{
+		if (b[i][j] == 'd'){ 
+			printLCS(X, b, i - 1, j - 1);
+			cout << X[i-1];
+		}
+		else if (b[i][j] == 'u')printLCS(X,b,i-1,j);
+		else printLCS(X,b,i,j-1);
+	}
+}
+int LCS_LESS_SPACE(const vector<char>&X, const vector<char>&Y, vector<vector<char>>&b)
+{
+	
+	int m = X.size();//X:<x0,x1....x(m-1)>
+	int n = Y.size();
+	b = vector<vector<char>>(m + 1, vector<char>(n + 1));
+	vector<int>upperRow(n+1,0);
+	vector<int>curRow(n + 1, 0);
+	for (int i = 1; i <= m; ++i)
+	{
+		int leftVal = 0;
+		int curVal;
+		for (int j = 1; j <= n; ++j)
+		{
+			if (X[i - 1] == Y[j - 1])
+			{
+				curVal = upperRow[j - 1]+1;
+				b[i][j] = 'd';
+			}
+			else
+			{
+				if (leftVal > upperRow[j])
+				{
+					curVal = leftVal;
+					b[i][j] = 'l';
+				}
+				else
+				{
+					curVal = upperRow[j];
+					b[i][j] = 'u';
+				}
+			}
+			leftVal = curVal;
+			curRow[j] = curVal;
+		}
+		upperRow = curRow;
+	}
+	return upperRow.back();
+}
 void main()
 {
 	
@@ -570,9 +683,18 @@ void main()
 	//	cout << pq.top() << " ";
 	//  pq.pop();
 	//}
-	vector<int>arr = {30,35,15,5,10,20,25};
-	vector<vector<int>>s;
-	cout << "min operation times:" << memoizedMatrixChain(arr, s) << endl;
-	printOptimalParens(s,1,6);
+	//vector<int>arr = {30,35,15,5,10,20,25};
+	//vector<vector<int>>s;
+	//cout << "min operation times:" << memoizedMatrixChain(arr, s) << endl;
+	//printOptimalParens(s,1,6);
+	vector<char>X = {'A','C','C','G','G','T','C','G','A','G','T','G','C','G','C','G','G','A','A','G','C','C','G','G','C','C','G','A','A'};
+	string y = "GTCGTTCGGAATGCCGTTGCTCTGTAAA";
+	vector<char>Y;
+	for (auto yy : y)
+		Y.push_back(yy);
+	
+	vector<vector<char>>b;
+	cout << LCS_LESS_SPACE(X, Y, b) << endl;
+	printLCS(X,b,X.size(),Y.size());
 	int axxx = 0; 
 }
